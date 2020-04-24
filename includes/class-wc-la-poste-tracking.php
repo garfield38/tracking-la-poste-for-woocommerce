@@ -268,21 +268,28 @@ class WC_La_Poste_Tracking_Actions {
 
 		$options = get_option( 'woocommerce_la_poste_tracking_settings', array() );
 
-		$endpoint = 'https://api.laposte.fr/suivi/v1';
-		$request  = "code=" . $code;
+		$endpoint = 'https://api.laposte.fr/suivi/v2/idships';
 		$headers  = array( 
 							'X-Okapi-Key' => $options['api_key'],
 							'Content-Type' => 'application/json',
 							'Accept' => 'application/json'
 							);
 
-		$response      = wp_remote_get( $endpoint . '?' . $request, array(
+		$response      = wp_remote_get( $endpoint . '/' . $code, array(
 			'timeout' => 70,
 			'headers' => $headers,
 		) );
 		$response_code = wp_remote_retrieve_response_code( $response );
 		$response = json_decode( $response['body'] );
 		
+		// convert v2 output to v1 style
+		$response->code = $response->shipment->idShip;
+		$response->date = $response->shipment->event[0]->date;
+		$response->status = $response->shipment->event[0]->label;
+		foreach ($response->shipment->timeline as $lastInfo) if ($lastInfo->status == 1) $response->message = $lastInfo->shortLabel;
+		$response->link = $response->shipment->urlDetail;
+		$response->type = $response->shipment->product;
+
 		return $response;
 
 	}
